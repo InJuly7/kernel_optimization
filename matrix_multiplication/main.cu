@@ -8,25 +8,23 @@
 #include <iostream>
 #include <vector>
 
-using std::cout;
-using std::generate;
-using std::vector;
-
 __global__ void matrixMul(const int *a, const int *b, int *c, int N) {
   // Compute each thread's global row and column index
   int row = blockIdx.y * blockDim.y + threadIdx.y;
   int col = blockIdx.x * blockDim.x + threadIdx.x;
 
   // Iterate over row, and down column
-  c[row * N + col] = 0;
+  // c[row * N + col] = 0;
+  float Cvalue = 0;
   for (int k = 0; k < N; k++) {
     // Accumulate results for a single element
-    c[row * N + col] += a[row * N + k] * b[k * N + col];
+    Cvalue += a[row * N + k] * b[k * N + col];
   }
+  c[row * N + col] = Cvalue;
 }
 
 // Check result on the CPU
- void verify_result(vector<int> &a, vector<int> &b, vector<int> &c, int N) {
+ void verify_result(std::vector<int> &a, std::vector<int> &b, std::vector<int> &c, int N) {
    // For every row...
    for (int i = 0; i < N; i++) {
      // For every column...
@@ -52,13 +50,13 @@ int main() {
   size_t bytes = N * N * sizeof(int);
 
   // Host vectors
-  vector<int> h_a(N * N);
-  vector<int> h_b(N * N);
-  vector<int> h_c(N * N);
+  std::vector<int> h_a(N * N);
+  std::vector<int> h_b(N * N);
+  std::vector<int> h_c(N * N);
 
   // Initialize matrices
-  generate(h_a.begin(), h_a.end(), []() { return rand() % 100; });
-  generate(h_b.begin(), h_b.end(), []() { return rand() % 100; });
+  std::generate(h_a.begin(), h_a.end(), []() { return rand() % 100; });
+  std::generate(h_b.begin(), h_b.end(), []() { return rand() % 100; });
 
   // Allocate device memory
   int *d_a, *d_b, *d_c;
@@ -88,7 +86,7 @@ int main() {
 
   // Check result
   verify_result(h_a, h_b, h_c, N);
-  cout << "COMPLETED SUCCESSFULLY\n";
+  std::cout << "COMPLETED SUCCESSFULLY\n";
 
   // Free memory on device
   cudaFree(d_a);
