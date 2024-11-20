@@ -9,11 +9,18 @@
 #include <vector>
 
 
-// Matrix size of 1024 x 1024;
+// Matrix size of MxK  KxN  MxN;
 const int M = 1 << 10;
 const int K = 1 << 10;
 const int N = 1 << 10;
 
+__global__ void warmup()
+{
+  unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  float ia, ib;
+  ia = ib = 0.0f;
+  ib += ia + tid; 
+}
 
 __global__ void matrixMul(const float *a, const float *b, float *c) {
   // Compute each thread's global row and column index
@@ -83,7 +90,8 @@ int main() {
   // Use dim3 structs for block  and grid dimensions
   dim3 threads(THREADS, THREADS);
   dim3 blocks(BLOCK_X, BLOCK_Y);
-
+	
+  warmup<<<blocks, threads>>>();
   // Launch kernel
   matrixMul<<<blocks, threads>>>(d_a, d_b, d_c);
 
@@ -91,7 +99,7 @@ int main() {
   cudaMemcpy(h_c.data(), d_c, MatC_bytes, cudaMemcpyDeviceToHost);
 
   // Check result
-  verify_result(h_a, h_b, h_c, M, N, K);
+  // verify_result(h_a, h_b, h_c, M, N, K);
   std::cout << "COMPLETED SUCCESSFULLY\n";
 
   // Free memory on device

@@ -27,7 +27,7 @@ if [[ "$ARCH" == "sm_61" ]]; then
     ./main
     rm main
 elif [[ "$ARCH" == "sm_75" ]]; then
-    ncu -o kernel_profile --set full ./main
+    ncu -o kernel_profile -f --set full ./main
 else
     echo "Unsupported architecture for additional actions."
 fi
