@@ -7,27 +7,54 @@
 #include <functional>
 #include <iostream>
 #include <vector>
-
+// TILE_SIZE >= BLOCK_SIZE
+const int TILE_SIZE = 1 << 10;
 
 // Matrix size of 1024 x 1024;
+// M*K * K*N = M*N
 const int M = 1 << 10;
-const int K = 1 << 10;
 const int N = 1 << 10;
+const int K = 1 << 10;
 
 
-__global__ void matrixMul(const float *a, const float *b, float *c) {
+__global__ void matrixMul(const float *a, const float *b, float *c)
+{
   // Compute each thread's global row and column index
   int row = blockIdx.y * blockDim.y + threadIdx.y;
   int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-  // Iterate over row, and down column
-  // c[row * N + col] = 0;
-  float Cvalue = 0;
-  for (int i = 0; i < K; i++) {
-    // Accumulate results for a single element
-    Cvalue += a[row * K + i] * b[i * N + col];
+  // Statically allocated shared memorya
+	// 最好满足 block_size >= tile_size, 加载数据时候每个线程至少可以加载4B
+  __shared__ float s_a[TILE_SIZE];
+  __shared__ float s_b[TILE_SIZE];
+
+  // Accumulate in temporary variable
+  int tmp = 0;
+	int step = blockDim.x;
+  // Sweep tile across matrix
+  for (int i = 0; i < K; i += step)
+	{
+    // Load in elements for this tile
+		// 块内索引 与 共享内存映射
+		// 线程索引 与 输入矩阵映射
+    s_a[threadIdx.y * step + threadIdx.x] = a[row * K + i + threadIdx.x];
+    s_b[threadIdx.y * step + threadIdx.x] = b[i * N + threadIdx.y * N + col];
+
+    // Wait for both tiles to be loaded in before doing computation
+    __syncthreads();
+
+    // Do matrix multiplication on the small matrix
+    for (int j = 0; j < step; j++) {
+      tmp += s_a[threadIdx.y * step + j] * s_b[j * blockDim.x + threadIdx.x];
+    }
+
+    // Wait for all threads to finish using current tiles before loading in new
+    // ones
+    __syncthreads();
   }
-  c[row * N + col] = Cvalue;
+
+  // Write back results
+  c[row * N + col] = tmp;
 }
 
 // Check result on the CPU
@@ -52,13 +79,13 @@ __global__ void matrixMul(const float *a, const float *b, float *c) {
 int main() {
 
   // Size (in bytes) of matrix
-  size_t MatA_bytes = M * K * sizeof(float);
-  size_t MatB_bytes = K * N * sizeof(float);
-  size_t MatC_bytes = M * N * sizeof(float);
+  size_t MatA_bytes = M * N * sizeof(float);
+  size_t MatB_bytes = N * K * sizeof(float);
+  size_t MatC_bytes = M * K * sizeof(float);
   // Host vectors
-  std::vector<float> h_a(M * K);
-  std::vector<float> h_b(K * N);
-  std::vector<float> h_c(M * N);
+  std::vector<float> h_a(M * N);
+  std::vector<float> h_b(N * K);
+  std::vector<float> h_c(M * K);
 
   // Initialize matrices
   std::generate(h_a.begin(), h_a.end(), []() { return rand() % 100; });
@@ -101,5 +128,3 @@ int main() {
 
   return 0;
 }
-
-

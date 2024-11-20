@@ -1,5 +1,0 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
-PROJECT(matrix_multiplication)
-FIND_PACKAGE(CUDA REQUIRED)
-CUDA_ADD_EXECUTABLE(matrix_multiplication main.cu)
-TARGET_LINK_LIBRARIES(matrix_multiplication)
