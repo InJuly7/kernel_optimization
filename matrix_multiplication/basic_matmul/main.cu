@@ -43,9 +43,9 @@ __global__ void matrixMul(const float *a, const float *b, float *c, int M, int N
 
 int main() {
   // Matrix size of 1024 x 1024;
-  int M = 1 << 5;
-  int N = 1 << 5;
-  int K = 1 << 5;
+  int M = 1 << 10;
+  int N = 1 << 10;
+  int K = 1 << 10;
 
   // Size (in bytes) of matrix
   size_t MatA_bytes = M * N * sizeof(float);
