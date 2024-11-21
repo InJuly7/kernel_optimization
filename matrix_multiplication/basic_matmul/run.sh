@@ -15,7 +15,7 @@ else
 fi
 
 # 编译 CUDA 程序
-nvcc -arch=${ARCH} main.cu -o main
+nvcc -arch=${ARCH} -O2 main.cu -o main
 if [ $? -ne 0 ]; then
     echo "Compilation failed."
     exit 1
