@@ -17,6 +17,53 @@ const int N = 1 << 10;
 const int K = 1 << 10;
 
 
+__global__ void matrixMul(const float *A, const float *B, float *C)
+{
+  // Compute each thread's global row and column index
+  // int row = blockIdx.y * blockDim.y + threadIdx.y;
+  // int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+  int bx = blockIdx.x;
+  int by = blockIdx.y;
+
+  const int BM = 32;
+  const int BN = 32;
+  const int BK = 32;
+
+  int tx = threadIdx.x % BN;
+  int ty = threadIdx.x / BN;
+
+  // 申请共享内存空间
+  __shared__ float As[BM * BK];
+  __shared__ float Bs[BK * BN];
+
+  // 移动到当前block
+  A = &A[by * BM * K];
+  B = &B[bx * BN];
+  C = &C[by * BM * N + bx * BN];
+
+  float tmp = 0.;
+  for (int k = 0; k < K; k += BK)
+  {
+      // 缓存A_tile和B_tile
+      As[ty * BK + tx] = A[ty * K + tx];
+      Bs[ty * BN + tx] = B[ty * N + tx];
+      // 同步所有线程缓存完成
+      __syncthreads();
+      A += BK;
+      B += BK * N;
+      for (int i = 0; i < BK; i++) {
+          tmp += As[ty * BK + i] * Bs[i * BN + tx];
+      }
+      // FMA计算需要读取缓存数据，在新一轮写入缓存前进行同步，确保所有线程计算完成
+      __syncthreads();
+  }
+  C[ty * N + tx] = tmp;
+
+
+
+}
+
 __global__ void matrixMul(const float *a, const float *b, float *c)
 {
   // Compute each thread's global row and column index
@@ -54,9 +101,14 @@ __global__ void matrixMul(const float *a, const float *b, float *c)
     __syncthreads();
   }
 
-  // Write back results
+  Write back results
   c[row * N + col] = tmp;
 }
+
+
+
+
+
 
 // Check result on the CPU
 // MxN = MxK * KxN
@@ -103,13 +155,14 @@ int main() {
   cudaMemcpy(d_b, h_b.data(), MatB_bytes, cudaMemcpyHostToDevice);
 
   // Threads per CTA dimension
-  int THREADS = 32;
-
+  int THREADS_X = 32;
+  int THREADS_Y = 32;
   // Blocks per grid dimension (assumes THREADS divides N evenly)
-  int BLOCK_X = M / THREADS;
-  int BLOCK_Y = K / THREADS;
+  int BLOCK_X = M / THREADS_X;
+  int BLOCK_Y = K / THREADS_Y;
   // Use dim3 structs for block  and grid dimensions
-  dim3 threads(THREADS, THREADS);
+  // dim3 threads(THREADS_X, THREADS_Y);
+  dim3 threads(1024);
   dim3 blocks(BLOCK_X, BLOCK_Y);
 
   // Launch kernel
@@ -119,7 +172,7 @@ int main() {
   cudaMemcpy(h_c.data(), d_c, MatC_bytes, cudaMemcpyDeviceToHost);
 
   // Check result
-  // verify_result(h_a, h_b, h_c, M, N, K);
+  verify_result(h_a, h_b, h_c, M, N, K);
   std::cout << "COMPLETED SUCCESSFULLY\n";
 
   // Free memory on device

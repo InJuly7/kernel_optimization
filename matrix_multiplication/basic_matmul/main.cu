@@ -10,10 +10,6 @@
 
 
 // Matrix size of MxK  KxN  MxN;
-const int M = 1 << 10;
-const int K = 1 << 10;
-const int N = 1 << 10;
-
 
 __global__ void matrixMul(const float *a, const float *b, float *c) {
   // Compute each thread's global row and column index
@@ -51,10 +47,9 @@ __global__ void matrixMul(const float *a, const float *b, float *c) {
 
 int main() {
 
+  int N = 1 << 10;
   // Size (in bytes) of matrix
-  size_t MatA_bytes = M * K * sizeof(float);
-  size_t MatB_bytes = K * N * sizeof(float);
-  size_t MatC_bytes = M * N * sizeof(float);
+  size_t Mat_bytes = N * N * sizeof(float);
   // Host vectors
   std::vector<float> h_a(M * K);
   std::vector<float> h_b(K * N);
